@@ -9,6 +9,9 @@ from app.forecast.morocco import city_forecast, arabic_summary
 from app.ensemble.probability import precipitation_probability
 from app.ensemble.agreement import model_agreement
 from app.maps.renderer import render_precipitation
+from app.maps.synoptic import render_pressure_wind, render_upper_air
+from app.downloader.upper_air import download_upper_air
+from app.grib.parser import open_pressure_levels
 
 
 def main():
@@ -38,6 +41,26 @@ def main():
     g["model"] = "NOAA GEFS control"
 
     agreement = model_agreement(e, g)
+
+    # Synoptic products: surface pressure/wind plus 500/850 hPa.
+    synoptic_maps = {"pressure_wind": str(render_pressure_wind(e_ds, args.step))}
+    upper_path = download_upper_air(args.step)
+    upper_ds = open_pressure_levels(upper_path)
+    synoptic_maps["500hpa"] = str(render_upper_air(upper_ds, 500, args.step))
+    synoptic_maps["850hpa"] = str(render_upper_air(upper_ds, 850, args.step))
+
+    prob = e.get("ens_precip_probability_percent")
+    if prob is not None:
+        rain_text = (
+            f"احتمال تجاوز {args.rain_threshold} مم خلال نافذة 24 ساعة يبلغ {prob}% وفق ECMWF ENS. "
+        )
+    else:
+        rain_text = ""
+    confidence_note = (
+        "تقارب النموذجين جيد ويزيد الثقة في الاتجاه العام، مع بقاء التفاصيل المحلية قابلة للتغير."
+        if agreement["score_percent"] >= 70 else
+        "يوجد اختلاف ملحوظ بين النموذجين، لذلك يجب التعامل مع التفاصيل بحذر ومتابعة التحديثات القادمة."
+    )
     result = {
         "city": args.city,
         "city_ar": CITIES[args.city]["name_ar"],
@@ -46,11 +69,16 @@ def main():
         "gefs": g,
         "model_agreement": agreement,
         "analysis_ar": (
-            f"مقارنة ECMWF وGEFS لمدينة {CITIES[args.city]['name_ar']}. "
-            f"درجة التشابه الحسابية الحالية {agreement['score_percent']}% ({agreement['label_ar']}). "
-            "هذه الدرجة تقيس تقارب النموذجين وليست احتمالاً رسميًا لحدوث الحالة الجوية."
+            f"تحليل النماذج لمدينة {CITIES[args.city]['name_ar']} عند +{args.step} ساعة. "
+            + rain_text
+            + f"درجة اتفاق ECMWF وGEFS الحسابية {agreement['score_percent']}% ({agreement['label_ar']}). "
+            + confidence_note
+            + " درجة الاتفاق هي مؤشر تقارب بين النموذجين وليست احتمالاً رسميًا لحدوث الحالة."
         ),
-        "map": str(render_precipitation(e_ds, args.step)),
+        "maps": {
+            "precipitation": str(render_precipitation(e_ds, args.step)),
+            **synoptic_maps,
+        },
     }
     e["summary_ar"] = arabic_summary(e)
     g["summary_ar"] = arabic_summary(g)
