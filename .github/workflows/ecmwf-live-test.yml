@@ -1,0 +1,64 @@
+name: ECMWF Live Prototype Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'run_v2.py'
+      - 'requirements.txt'
+      - '.github/workflows/ecmwf-live-test.yml'
+
+jobs:
+  live-forecast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install ecCodes system runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libeccodes0 libeccodes-dev
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run live ECMWF test for Tangier +72h
+        run: |
+          mkdir -p output data
+          python run_v2.py --city tangier --step 72 --rain-threshold 1 | tee output/forecast_tangier_072h.json
+
+      - name: Verify generated products
+        run: |
+          test -s output/forecast_tangier_072h.json
+          test -s output/precip_072h.png
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          text = Path('output/forecast_tangier_072h.json').read_text(encoding='utf-8')
+          start = text.find('{')
+          payload = json.loads(text[start:])
+          assert payload['city'] == 'tangier'
+          assert payload['model'] == 'ECMWF IFS'
+          assert payload['forecast_step_hours'] == 72
+          print('Validated live ECMWF forecast:', payload)
+          PY
+
+      - name: Upload forecast artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ecmwf-live-prototype
+          path: |
+            output/*.json
+            output/*.png
+          if-no-files-found: warn
+          retention-days: 7
