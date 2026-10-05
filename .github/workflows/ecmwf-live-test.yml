@@ -51,6 +51,26 @@ jobs:
           assert set(['precipitation','pressure_wind','500hpa','850hpa']).issubset(payload['maps'])
           print('Validated ECMWF + GEFS:', payload['model_agreement'])
           PY
+      - name: Validate API and short timeline
+        run: |
+          python - <<'PY'
+          from fastapi.testclient import TestClient
+          from app.api.main import app
+          c = TestClient(app)
+          h = c.get('/health')
+          assert h.status_code == 200
+          assert h.json()['horizon_days'] == 15
+          m = c.get('/meta')
+          assert m.status_code == 200
+          assert 360 in m.json()['timeline_steps_hours']
+          t = c.get('/timeline/tangier?start=72&end=72&include_gefs=true')
+          assert t.status_code == 200, t.text
+          p = t.json()
+          assert len(p['timeline']) == 1
+          assert p['timeline'][0]['step_hours'] == 72
+          assert 'agreement' in p['timeline'][0]
+          print('Validated API timeline +72h')
+          PY
       - name: Upload forecast artifact
         if: always()
         uses: actions/upload-artifact@v4
