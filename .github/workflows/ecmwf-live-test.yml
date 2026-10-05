@@ -35,6 +35,9 @@ jobs:
         run: |
           test -s output/forecast_compare_tangier_072h.json
           test -s output/precip_072h.png
+          test -s output/pressure_wind_072h.png
+          test -s output/upper_500_072h.png
+          test -s output/upper_850_072h.png
           python - <<'PY'
           import json
           from pathlib import Path
@@ -45,6 +48,7 @@ jobs:
           assert payload['gefs']['model'] == 'NOAA GEFS control'
           assert payload['forecast_step_hours'] == 72
           assert 'score_percent' in payload['model_agreement']
+          assert set(['precipitation','pressure_wind','500hpa','850hpa']).issubset(payload['maps'])
           print('Validated ECMWF + GEFS:', payload['model_agreement'])
           PY
       - name: Upload forecast artifact
