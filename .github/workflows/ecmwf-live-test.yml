@@ -1,4 +1,4 @@
-name: ECMWF Live Prototype Test
+name: ECMWF + GEFS Live Prototype Test
 
 on:
   workflow_dispatch:
@@ -7,56 +7,51 @@ on:
     paths:
       - 'app/**'
       - 'run_v2.py'
+      - 'run_v3.py'
       - 'requirements.txt'
       - '.github/workflows/ecmwf-live-test.yml'
 
 jobs:
   live-forecast:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: pip
-
       - name: Install ecCodes system runtime
         run: |
           sudo apt-get update
           sudo apt-get install -y libeccodes0 libeccodes-dev
-
       - name: Install Python dependencies
         run: pip install -r requirements.txt
-
-      - name: Run live ECMWF test for Tangier +72h
+      - name: Run live ECMWF + NOAA GEFS comparison for Tangier +72h
         run: |
           mkdir -p output data
-          python run_v2.py --city tangier --step 72 --rain-threshold 1 | tee output/forecast_tangier_072h.json
-
+          python run_v3.py --city tangier --step 72 --rain-threshold 1 | tee output/forecast_compare_tangier_072h.json
       - name: Verify generated products
         run: |
-          test -s output/forecast_tangier_072h.json
+          test -s output/forecast_compare_tangier_072h.json
           test -s output/precip_072h.png
           python - <<'PY'
           import json
           from pathlib import Path
-          text = Path('output/forecast_tangier_072h.json').read_text(encoding='utf-8')
-          start = text.find('{')
-          payload = json.loads(text[start:])
+          text = Path('output/forecast_compare_tangier_072h.json').read_text(encoding='utf-8')
+          payload = json.loads(text[text.find('{'):])
           assert payload['city'] == 'tangier'
-          assert payload['model'] == 'ECMWF IFS'
+          assert payload['ecmwf']['model'] == 'ECMWF IFS'
+          assert payload['gefs']['model'] == 'NOAA GEFS control'
           assert payload['forecast_step_hours'] == 72
-          print('Validated live ECMWF forecast:', payload)
+          assert 'score_percent' in payload['model_agreement']
+          print('Validated ECMWF + GEFS:', payload['model_agreement'])
           PY
-
       - name: Upload forecast artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ecmwf-live-prototype
+          name: morocco-weather-engine-v3
           path: |
             output/*.json
             output/*.png
