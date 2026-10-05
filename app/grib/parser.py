@@ -53,5 +53,19 @@ def open_isobaric(path: Path, level_hpa: int) -> xr.Dataset:
     return xr.merge(candidates, compat="override", join="outer")
 
 
+def open_pressure_levels(path: Path) -> xr.Dataset:
+    """Open all available isobaric pressure levels and merge their fields."""
+    datasets = cfgrib.open_datasets(str(path), backend_kwargs={"indexpath": ""})
+    candidates = []
+    for ds in datasets:
+        if "isobaricInhPa" not in ds.coords:
+            continue
+        ds = _normalise(ds)
+        candidates.append(ds)
+    if not candidates:
+        raise ValueError(f"No isobaric pressure-level fields found in {path}")
+    return xr.merge(candidates, compat="override", join="outer")
+
+
 def nearest_point(ds: xr.Dataset, lat: float, lon: float) -> xr.Dataset:
     return ds.sel(latitude=lat, longitude=lon, method="nearest")
