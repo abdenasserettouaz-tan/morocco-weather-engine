@@ -67,6 +67,12 @@ jobs:
           assert 'اتجاه 8–15 يومًا' in ui.text
           assert 'المناطق المتأثرة' in ui.text
           assert 'خرائط الطقس' in ui.text
+          assert 'توقع 15 يومًا' in ui.text
+          assert 'الإعدادات' in ui.text
+          assert 'data-page="forecast15"' in ui.text
+          assert 'data-page="maps"' in ui.text
+          assert 'data-page="modelAnalysis"' in ui.text
+          assert 'data-page="settings"' in ui.text
           m = c.get('/meta')
           assert m.status_code == 200
           assert 360 in m.json()['timeline_steps_hours']
