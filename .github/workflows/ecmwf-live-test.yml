@@ -69,7 +69,12 @@ jobs:
           assert len(p['timeline']) == 1
           assert p['timeline'][0]['step_hours'] == 72
           assert 'agreement' in p['timeline'][0]
-          print('Validated API timeline +72h')
+          # Regression: a range with no scheduled step must return an empty timeline,
+          # never fall back to downloading the full 15-day schedule.
+          empty = c.get('/timeline/tangier?start=145&end=155&include_gefs=false')
+          assert empty.status_code == 200, empty.text
+          assert empty.json()['timeline'] == []
+          print('Validated API timeline +72h and empty-range regression')
           PY
       - name: Upload forecast artifact
         if: always()
