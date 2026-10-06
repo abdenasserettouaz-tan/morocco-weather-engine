@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>طقس المغرب</title>
+<style>
+body{margin:0;font-family:system-ui;background:#f4f7fb;color:#14213d}.app{max-width:520px;margin:auto;padding:18px}.hero{background:linear-gradient(145deg,#163b65,#2d6f9f);color:white;padding:24px;border-radius:28px}.temp{font-size:64px;font-weight:700}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:14px}.card{background:white;border-radius:20px;padding:16px;box-shadow:0 6px 24px #1231}.days{display:flex;gap:10px;overflow:auto}.day{min-width:120px}.muted{opacity:.7;font-size:13px}img{width:100%;border-radius:18px}.badge{display:inline-block;padding:6px 10px;background:#ffffff26;border-radius:20px}
+</style></head>
+<body><main class="app">
+<section class="hero"><span class="badge" id="city">...</span><div class="temp"><span id="temp">--</span>°</div><div id="analysis">جاري تحميل التوقع...</div></section>
+<h3>الأيام القادمة</h3><div class="days" id="days"></div>
+<div class="grid"><div class="card"><b>الرياح</b><div id="wind">--</div></div><div class="card"><b>عدم اليقين</b><div id="uncertainty">--</div></div></div>
+<h3>تحليل النماذج</h3><section class="card"><div id="regional">--</div><p class="muted">التحليل آلي وليس نشرة إنذار رسمية.</p></section>
+<h3>الخريطة</h3><section class="card" id="mapbox">الخريطة غير متاحة بعد.</section>
+</main>
+<script>
+const city=new URLSearchParams(location.search).get('city')||'tangier';
+fetch('/mobile/'+city+'?step=72&gefs_members=3').then(r=>r.json()).then(p=>{
+ document.querySelector('#city').textContent=p.meta.city_ar;
+ document.querySelector('#temp').textContent=p.current.temperature_c??'--';
+ document.querySelector('#wind').textContent=(p.current.wind_kmh??'--')+' كم/س';
+ document.querySelector('#analysis').textContent=p.analysis.headline_ar;
+ document.querySelector('#regional').textContent=p.analysis.regional_ar+' '+p.analysis.confidence_ar;
+ document.querySelector('#uncertainty').textContent=p.ensemble_uncertainty.uncertainty_label_ar??'غير متاح';
+ document.querySelector('#days').innerHTML=p.day_cards.map(d=>'<div class="card day"><b>اليوم '+d.day+'</b><div>'+d.temperature_min_c+'° / '+d.temperature_max_c+'°</div><div>مطر '+(d.daily_precip_mm??'--')+' مم</div></div>').join('');
+ const m=p.maps.layers.find(x=>x.id==='precipitation'&&x.available);
+ if(m) document.querySelector('#mapbox').innerHTML='<img src="'+m.url+'" alt="خريطة الهطول">';
+}).catch(()=>document.querySelector('#analysis').textContent='تعذر تحميل بيانات الطقس.');
+</script></body></html>
