@@ -14,5 +14,10 @@ android {
         val weatherAppUrl = (project.findProperty("weatherAppUrl") as String?) ?: "https://weather.example.invalid/mobile-ui/"
         buildConfigField("String", "WEATHER_APP_URL", "\\\"${weatherAppUrl}\\\"")
     }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget = "17" }
     buildFeatures { buildConfig = true }
 }
