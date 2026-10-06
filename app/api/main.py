@@ -1,15 +1,20 @@
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.staticfiles import StaticFiles
 from app.config import CITIES, DATA_DIR
 from app.grib.parser import open_surface
 from app.forecast.morocco import city_forecast, arabic_summary
 from app.forecast.timeline import FORECAST_STEPS, build_timeline
 from app.api.schemas import EngineMeta
+from app.maps.metadata import map_metadata
 
 app = FastAPI(
     title="Morocco Weather Engine",
     version="0.9.0",
     description="ECMWF + NOAA GEFS weather engine for Morocco and NW Africa",
 )
+
+# Generated weather maps are served read-only to mobile/web clients.
+app.mount("/maps", StaticFiles(directory=str(DATA_DIR.parent / "output")), name="maps")
 
 @app.get("/health")
 def health():
@@ -223,8 +228,8 @@ def mobile(
             "note_ar": "درجة الاتفاق مؤشر حسابي لتقارب ECMWF وGEFS وليست احتمالاً رسميًا لحدوث الحالة.",
         },
         "maps": {
+            **map_metadata(step),
             "available_layers": ["precipitation", "pressure_wind", "500hpa", "850hpa"],
-            "forecast_step_hours": step,
         },
         "layers": [
             {"id": "precipitation", "label_ar": "الهطول"},
