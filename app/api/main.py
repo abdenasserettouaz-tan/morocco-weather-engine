@@ -7,7 +7,7 @@ from app.api.schemas import EngineMeta
 
 app = FastAPI(
     title="Morocco Weather Engine",
-    version="0.8.0",
+    version="0.9.0",
     description="ECMWF + NOAA GEFS weather engine for Morocco and NW Africa",
 )
 
@@ -70,6 +70,7 @@ def mobile(
     rain_threshold: int = Query(1),
     include_gefs: bool = True,
     gefs_members: int = Query(5, ge=2, le=30),
+    include_daily: bool = True,
 ):
     """Unified payload contract for the mobile client.
 
@@ -89,6 +90,7 @@ def mobile(
     from app.ensemble.uncertainty import pressure_uncertainty
     from app.downloader.ecmwf import download_ens_mean_pressure, download_ens_spread_pressure
     from app.ensemble.gefs_summary import build_gefs_summary, GEFS_PERTURBED_MEMBERS
+    from app.forecast.daily import daily_from_accumulated, extended_probabilistic_trend
 
     try:
         e = city_forecast(open_surface(download_deterministic(step)), city)
@@ -111,6 +113,31 @@ def mobile(
                 )
             except Exception:
                 gefs_ensemble = None
+
+        # Daily cards use 24 h boundaries so precipitation can be de-accumulated.
+        # Limit this to the requested day; full 15-day ingestion/cache is a separate job.
+        daily_points = []
+        if include_daily:
+            day_end = max(24, min(360, ((step + 23) // 24) * 24))
+            for daily_step in range(24, day_end + 1, 24):
+                d = city_forecast(open_surface(download_deterministic(daily_step)), city)
+                daily_points.append({"step_hours": daily_step, "ecmwf": d})
+        daily_cards = daily_from_accumulated(daily_points)
+
+        # Expose an 8-15 day ensemble trend only when the requested step is in
+        # the extended range. This avoids pretending a single deterministic
+        # value is a long-range probabilistic forecast.
+        extended_inputs = []
+        if include_gefs and step >= 192:
+            try:
+                extended = build_gefs_summary(
+                    city, step, members=GEFS_PERTURBED_MEMBERS[:gefs_members]
+                )
+                extended["day"] = round(step / 24, 2)
+                extended_inputs.append(extended)
+            except Exception:
+                pass
+        extended_trend = extended_probabilistic_trend(extended_inputs)
 
         city_cfg = CITIES[city]
         uncertainty = None
@@ -153,21 +180,14 @@ def mobile(
     return {
         "meta": {
             **EngineMeta().model_dump(),
-            "api_version": "0.8.0",
+            "api_version": "0.9.0",
             "city": city,
             "city_ar": CITIES[city]["name_ar"],
             "forecast_step_hours": step,
         },
         "current": e,
-        "day_cards": [
-            {
-                "step_hours": step,
-                "temperature_c": e.get("temperature_c"),
-                "wind_kmh": e.get("wind_kmh"),
-                "accumulated_precip_mm": e.get("total_precip_mm"),
-                "precipitation_semantics": "ECMWF IFS accumulated precipitation since model initialization",
-            }
-        ],
+        "day_cards": daily_cards,
+        "extended_trend_8_15_days": extended_trend,
         "timeline": [
             {
                 "step_hours": step,
