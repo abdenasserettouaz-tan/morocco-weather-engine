@@ -1,59 +1,72 @@
 # Morocco Weather Engine
 
-Prototype V1 for a Morocco/North Africa weather-analysis application.
+Weather-analysis platform for Morocco and the surrounding North Atlantic / Iberian domain, using official ECMWF Open Data and NOAA GEFS.
 
-## V1 goal
+## Current validated build
 
-Use official ECMWF Open Data to download selected ECMWF ENS fields, decode GRIB2, subset the eastern Atlantic / Iberia / Morocco domain, extract city forecasts, and expose the result as JSON with an Arabic machine-generated summary.
+The backend and five-page Arabic mobile web application are now covered by live E2E and semantic contract tests. The current mobile API contract is V0.10.
 
-## Current data fields
+### Data and forecast engine
+- ECMWF IFS deterministic surface forecast through 15 days.
+- ECMWF ENS official precipitation probability products.
+- ECMWF ENS mean/spread uncertainty.
+- NOAA GEFS control and application-computed perturbed-member summaries.
+- Cross-model ECMWF/GEFS agreement score, explicitly separate from official probability.
+- Daily precipitation de-accumulation and probabilistic days 8–15 trend.
+- Synoptic map products: precipitation, MSLP + 10 m wind, 500 hPa and 850 hPa.
+- Arabic model analysis and affected Moroccan city points.
 
-- Mean sea-level pressure
-- 2 m temperature
-- 10 m U/V wind
-- Total precipitation
-- ECMWF ENS ensemble-mean product
+### Mobile application
+The responsive application is served at `/mobile-ui/` and contains five views:
+- Home
+- 15-day forecast
+- Weather maps
+- Model analysis
+- Settings
+
+It consumes `GET /mobile/{city}` and keeps official ECMWF probability, ensemble uncertainty and cross-model agreement semantically separate.
 
 ## Domain
 
-45N to 20N, 25W to 10E. This deliberately includes the eastern Atlantic and Iberian Peninsula so approaching Atlantic systems can be analysed before reaching Morocco.
+45N to 20N, 25W to 10E, covering Morocco, Iberia and the eastern Atlantic so approaching Atlantic systems can be analysed upstream.
 
-## Quick start
+## Run locally
 
 ```bash
 python -m venv .venv
 # Windows: .venv\Scripts\activate
 # Linux/macOS: source .venv/bin/activate
 pip install -r requirements.txt
-python run_prototype.py --city tangier --step 168
-```
-
-The command downloads the required official ECMWF Open Data GRIB2 file and prints a JSON forecast for Tangier at +168 hours.
-
-## API
-
-```bash
 uvicorn app.api.main:app --reload
 ```
 
-Endpoints:
+Open `/mobile-ui/` on the running server.
+
+## Core API
 
 - `GET /health`
+- `GET /meta`
 - `GET /cities`
-- `GET /forecast/tangier?step=168`
+- `GET /forecast/{city}`
+- `GET /timeline/{city}`
+- `GET /mobile/{city}`
+- `GET /maps/...`
 
-The forecast endpoint expects the corresponding GRIB file to have been downloaded first by the prototype runner.
+See `docs/mobile-api-contract.md` for the stable mobile contract.
 
-## Next milestones
+## Validation
 
-1. Validate live ECMWF GRIB retrieval and field decoding on a runtime with ecCodes.
-2. Add precipitation/pressure map renderer.
-3. Retrieve ENS members and calculate probability + spread instead of treating the ensemble mean as probability.
-4. Add NOAA GEFS ingestion.
-5. Add ECMWF-vs-GEFS agreement score.
-6. Add synoptic-pattern analysis and richer Arabic explanations.
-7. Connect the engine to the Android UI.
+GitHub Actions runs both semantic regression tests and a live ECMWF + NOAA GEFS E2E workflow. The live workflow downloads real model data, generates products, exercises API/mobile contracts and verifies map/static serving.
 
-## Scientific caution
+## Scientific semantics
 
-Long-range deterministic-looking values must not be presented as certainty. V1 keeps ensemble mean separate from probability. Probability/confidence will only be exposed after member-level calculations are implemented and validated.
+- Only ECMWF ENS `type=ep` is labelled official event probability.
+- ECMWF ENS spread represents uncertainty, not event probability.
+- Cross-model agreement is an application-defined similarity score, not official probability.
+- GEFS ensemble summaries are application-computed statistics and expose the sampled member count.
+- Days 8–15 are presented as probabilistic ensemble trend, never deterministic certainty.
+- Arabic impact analysis is model-derived and is not an official meteorological warning.
+
+## Next build phase
+
+Package the validated mobile client for Android while keeping the weather engine/API server-side. Production packaging should use a configurable HTTPS API base URL rather than embedding the Python/GRIB engine inside the APK.
