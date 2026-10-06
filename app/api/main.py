@@ -9,7 +9,7 @@ from app.maps.metadata import map_metadata
 
 app = FastAPI(
     title="Morocco Weather Engine",
-    version="0.9.0",
+    version="0.10.0",
     description="ECMWF + NOAA GEFS weather engine for Morocco and NW Africa",
 )
 
@@ -96,6 +96,7 @@ def mobile(
     from app.downloader.ecmwf import download_ens_mean_pressure, download_ens_spread_pressure
     from app.ensemble.gefs_summary import build_gefs_summary, GEFS_PERTURBED_MEMBERS
     from app.forecast.daily import daily_from_accumulated, extended_probabilistic_trend
+    from app.analysis.arabic import affected_cities, build_arabic_analysis
 
     try:
         e = city_forecast(open_surface(download_deterministic(step)), city)
@@ -182,10 +183,13 @@ def mobile(
     except Exception as exc:
         raise HTTPException(503, f"Model data unavailable: {exc}") from exc
 
+    affected = affected_cities(open_surface(download_deterministic(step)))
+    analysis = build_arabic_analysis(e, affected, uncertainty, agreement)
+
     return {
         "meta": {
             **EngineMeta().model_dump(),
-            "api_version": "0.9.0",
+            "api_version": "0.10.0",
             "city": city,
             "city_ar": CITIES[city]["name_ar"],
             "forecast_step_hours": step,
@@ -237,9 +241,7 @@ def mobile(
             {"id": "500hpa", "label_ar": "طبقة 500 hPa"},
             {"id": "850hpa", "label_ar": "طبقة 850 hPa"},
         ],
-        "analysis_ar": (
-            arabic_summary(e)
-            + " احتمال الهطول الرسمي، إن ظهر، مصدره ECMWF ENS. "
-            + "تشتت ENS يصف عدم اليقين ولا يمثل احتمالاً رسميًا. ملخص GEFS يحسب المتوسط والتشتت من أعضاء NOAA الفعليين ولا يمثل احتمال حدث رسميًا.  أما درجة اتفاق النماذج فهي مقياس هندسي مستقل وليست احتمالاً رسميًا."
-        ),
+        "analysis_ar": analysis["headline_ar"] + " " + analysis["regional_ar"] + " " + analysis["confidence_ar"],
+        "analysis": analysis,
+        "affected_cities": affected,
     }
