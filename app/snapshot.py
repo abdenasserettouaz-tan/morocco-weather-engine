@@ -8,6 +8,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.api.main import mobile
+from app.downloader.ecmwf import download_deterministic
+from app.grib.parser import open_surface
+from app.maps.renderer import render_precipitation
+from app.maps.synoptic import render_pressure_wind
 from app.config import CITIES, OUTPUT_DIR, ROOT
 
 DEFAULT_STEPS = [72, 192, 240, 288, 360]
@@ -26,6 +30,14 @@ def build_snapshot(out_dir: Path, cities: list[str], steps: list[int], gefs_memb
     (out_dir / "runtime-config.js").write_text(
         'window.WEATHER_STATIC=true;\n', encoding="utf-8"
     )
+
+    # Generate the two surface map layers that are available from the
+    # deterministic surface GRIB used by the static client. Upper-air layers
+    # remain explicitly unavailable until their pressure-level GRIB is ingested.
+    for map_step in steps:
+        surface = open_surface(download_deterministic(map_step))
+        render_precipitation(surface, map_step)
+        render_pressure_wind(surface, map_step)
 
     manifest = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -67,8 +79,11 @@ def build_snapshot(out_dir: Path, cities: list[str], steps: list[int], gefs_memb
                 payload.setdefault("meta", {})["gefs_fallback"] = True
                 payload["meta"]["gefs_fallback_reason"] = str(exc.detail)
             for layer in payload.get("maps", {}).get("layers", []):
-                if layer.get("url"):
-                    layer["url"] = "maps/" + Path(layer["url"]).name
+                filename = Path(layer.get("url", "")).name
+                if filename:
+                    layer["url"] = "../../maps/" + filename
+                    map_file = OUTPUT_DIR / filename
+                    layer["available"] = map_file.is_file() and map_file.stat().st_size > 0
             (city_dir / f"{step}.json").write_text(
                 json.dumps(payload, ensure_ascii=False, indent=2, default=_json_default),
                 encoding="utf-8",
