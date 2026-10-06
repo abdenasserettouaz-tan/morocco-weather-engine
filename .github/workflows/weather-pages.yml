@@ -79,7 +79,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y libeccodes0
       - run: pip install -r requirements.txt
       - name: Build complete static forecast
-        run: python -m app.snapshot --out public --steps 72 192 240 288 360 --gefs-members 3
+        run: python -m app.snapshot --out public --steps 24 48 72 96 120 144 168 192 216 240 264 288 312 336 360 --gefs-members 3
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
