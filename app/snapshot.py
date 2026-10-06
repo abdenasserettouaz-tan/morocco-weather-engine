@@ -81,7 +81,10 @@ def build_snapshot(out_dir: Path, cities: list[str], steps: list[int], gefs_memb
             for layer in payload.get("maps", {}).get("layers", []):
                 filename = Path(layer.get("url", "")).name
                 if filename:
-                    layer["url"] = "../../maps/" + filename
+                    # JSON lives at /data/<city>/<step>.json, but map URLs are
+                    # resolved by the browser relative to the page (/index.html),
+                    # not relative to the JSON file. Keep a page-root relative URL.
+                    layer["url"] = "maps/" + filename
                     map_file = OUTPUT_DIR / filename
                     layer["available"] = map_file.is_file() and map_file.stat().st_size > 0
             (city_dir / f"{step}.json").write_text(
