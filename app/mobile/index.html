@@ -1,29 +1,28 @@
 <!doctype html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>طقس المغرب</title>
-<style>
-body{margin:0;font-family:system-ui;background:#f4f7fb;color:#14213d}.app{max-width:520px;margin:auto;padding:18px}.hero{background:linear-gradient(145deg,#163b65,#2d6f9f);color:white;padding:24px;border-radius:28px}.temp{font-size:64px;font-weight:700}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:14px}.card{background:white;border-radius:20px;padding:16px;box-shadow:0 6px 24px #1231}.days{display:flex;gap:10px;overflow:auto}.day{min-width:120px}.muted{opacity:.7;font-size:13px}img{width:100%;border-radius:18px}.badge{display:inline-block;padding:6px 10px;background:#ffffff26;border-radius:20px}
-</style></head>
-<body><main class="app">
-<section class="hero"><span class="badge" id="city">...</span><div class="temp"><span id="temp">--</span>°</div><div id="analysis">جاري تحميل التوقع...</div></section>
-<h3>الأيام القادمة</h3><div class="days" id="days"></div>
-<div class="grid"><div class="card"><b>الرياح</b><div id="wind">--</div></div><div class="card"><b>عدم اليقين</b><div id="uncertainty">--</div></div></div>
-<h3>تحليل النماذج</h3><section class="card"><div id="regional">--</div><p class="muted">التحليل آلي وليس نشرة إنذار رسمية.</p></section>
-<h3>الخريطة</h3><section class="card" id="mapbox">الخريطة غير متاحة بعد.</section>
-</main>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>طقس المغرب</title><style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#eef3f8;color:#10243e}.app{max-width:560px;margin:auto;padding:16px 16px 92px}.top{display:flex;justify-content:space-between;align-items:center;margin:4px 2px 14px}.top select{border:0;background:white;padding:10px 14px;border-radius:16px;font-weight:700}.hero{background:linear-gradient(145deg,#12365f,#2477aa);color:white;padding:22px;border-radius:30px;box-shadow:0 14px 35px #164d7930}.heroRow{display:flex;justify-content:space-between;align-items:end}.temp{font-size:70px;font-weight:750;line-height:1}.meta{opacity:.86}.headline{margin-top:14px;line-height:1.65}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:16px}.stat{background:#ffffff18;padding:11px 8px;border-radius:16px;text-align:center}.stat b{display:block;font-size:15px}.stat span{font-size:11px;opacity:.8}.sectionTitle{display:flex;justify-content:space-between;align-items:center;margin:22px 3px 10px}.sectionTitle h3{margin:0}.card{background:white;border-radius:22px;padding:16px;box-shadow:0 7px 25px #17375b10}.days{display:flex;gap:10px;overflow-x:auto;padding-bottom:3px}.day{min-width:132px}.day strong{display:block}.rain{font-size:12px;margin-top:8px}.models{display:grid;grid-template-columns:1fr 1fr;gap:10px}.big{font-size:25px;font-weight:750}.muted{font-size:12px;opacity:.65;line-height:1.55}.affected{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.chip{background:#edf4fa;border-radius:20px;padding:7px 10px;font-size:12px}.tabs{display:flex;gap:8px;overflow:auto;margin-bottom:10px}.tab{border:0;background:white;padding:9px 12px;border-radius:15px;white-space:nowrap}.tab.active{background:#163e68;color:white}.map img{width:100%;border-radius:16px;display:block}.trend{margin-top:10px}.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(560px,100%);display:grid;grid-template-columns:repeat(4,1fr);background:#fff;padding:10px 8px max(10px,env(safe-area-inset-bottom));box-shadow:0 -6px 25px #17375b16}.nav button{border:0;background:none;font-size:12px;color:#52657a}.nav button:first-child{color:#0d5689;font-weight:800}@media(max-width:380px){.temp{font-size:60px}.stats{grid-template-columns:1fr}.models{grid-template-columns:1fr}}
+</style></head><body><main class="app">
+<div class="top"><b>طقس المغرب</b><select id="citySelect"><option value="tangier">طنجة</option><option value="tetouan">تطوان</option><option value="chefchaouen">شفشاون</option><option value="rabat">الرباط</option><option value="casablanca">الدار البيضاء</option><option value="fes">فاس</option><option value="marrakesh">مراكش</option></select></div>
+<section class="hero"><div class="heroRow"><div><div class="meta" id="city">...</div><div class="temp"><span id="temp">--</span>°</div></div><div class="meta">+72 ساعة</div></div><div class="headline" id="analysis">جاري تحليل النماذج...</div><div class="stats"><div class="stat"><b id="wind">--</b><span>الرياح كم/س</span></div><div class="stat"><b id="pressure">--</b><span>الضغط hPa</span></div><div class="stat"><b id="prob">--</b><span>احتمال المطر الرسمي</span></div></div></section>
+<div class="sectionTitle"><h3>التوقع اليومي</h3><span class="muted">ECMWF</span></div><div class="days" id="days"></div>
+<div class="sectionTitle"><h3>ثقة النماذج</h3></div><div class="models"><section class="card"><div class="muted">اتفاق ECMWF + GEFS</div><div class="big" id="agreement">--</div><div class="muted" id="agreementLabel">مؤشر تقارب وليس احتمالاً</div></section><section class="card"><div class="muted">تشتت ECMWF ENS</div><div class="big" id="uncertainty">--</div><div class="muted">مقياس عدم اليقين</div></section></div>
+<div class="sectionTitle"><h3>اتجاه 8–15 يومًا</h3></div><section class="card"><div id="trend">يظهر الاتجاه عند اختيار خطوة زمنية ممتدة.</div><div class="muted">اتجاه Ensemble احتمالي وليس توقعًا حتميًا.</div></section>
+<div class="sectionTitle"><h3>المناطق المتأثرة</h3></div><section class="card"><div id="regional">--</div><div class="affected" id="affected"></div><p class="muted">مؤشرات تأثير آلية وليست إنذارًا رسميًا.</p></section>
+<div class="sectionTitle"><h3>خرائط الطقس</h3></div><div class="tabs" id="tabs"></div><section class="card map" id="mapbox">لا توجد خريطة متاحة لهذه الخطوة.</section>
+</main><nav class="nav"><button>الرئيسية</button><button>15 يوم</button><button>الخرائط</button><button>التحليل</button></nav>
 <script>
-const city=new URLSearchParams(location.search).get('city')||'tangier';
-fetch('/mobile/'+city+'?step=72&gefs_members=3').then(r=>r.json()).then(p=>{
- document.querySelector('#city').textContent=p.meta.city_ar;
- document.querySelector('#temp').textContent=p.current.temperature_c??'--';
- document.querySelector('#wind').textContent=(p.current.wind_kmh??'--')+' كم/س';
- document.querySelector('#analysis').textContent=p.analysis.headline_ar;
- document.querySelector('#regional').textContent=p.analysis.regional_ar+' '+p.analysis.confidence_ar;
- document.querySelector('#uncertainty').textContent=p.ensemble_uncertainty.uncertainty_label_ar??'غير متاح';
- document.querySelector('#days').innerHTML=p.day_cards.map(d=>'<div class="card day"><b>اليوم '+d.day+'</b><div>'+d.temperature_min_c+'° / '+d.temperature_max_c+'°</div><div>مطر '+(d.daily_precip_mm??'--')+' مم</div></div>').join('');
- const m=p.maps.layers.find(x=>x.id==='precipitation'&&x.available);
- if(m) document.querySelector('#mapbox').innerHTML='<img src="'+m.url+'" alt="خريطة الهطول">';
-}).catch(()=>document.querySelector('#analysis').textContent='تعذر تحميل بيانات الطقس.');
+const qs=new URLSearchParams(location.search);let city=qs.get('city')||'tangier';const step=Number(qs.get('step')||72);const $=s=>document.querySelector(s);
+$('#citySelect').value=city;$('#citySelect').onchange=e=>{qs.set('city',e.target.value);location.search=qs.toString()};
+function showMap(layer,p){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.id===layer.id));$('#mapbox').innerHTML=layer.available?'<img src="'+layer.url+'" alt="'+layer.label_ar+'">':'الخريطة غير متاحة لهذه الخطوة.'}
+fetch('/mobile/'+city+'?step='+step+'&gefs_members=3').then(r=>{if(!r.ok)throw Error();return r.json()}).then(p=>{
+ $('#city').textContent=p.meta.city_ar;$('#temp').textContent=p.current.temperature_c??'--';$('#wind').textContent=p.current.wind_kmh??'--';$('#pressure').textContent=p.current.pressure_hpa??'--';$('#analysis').textContent=p.analysis.headline_ar;
+ const op=p.official_probabilities.ecmwf_ens_precipitation;$('#prob').textContent=op?op.probability_percent+'%':'--';
+ $('#days').innerHTML=p.day_cards.map(d=>'<section class="card day"><strong>اليوم '+d.day+'</strong><div class="big">'+(d.temperature_max_c??'--')+'°</div><div class="muted">'+(d.temperature_min_c??'--')+'° / '+(d.temperature_max_c??'--')+'°</div><div class="rain">هطول '+(d.daily_precip_mm??'--')+' مم</div></section>').join('');
+ const a=p.cross_model_agreement;$('#agreement').textContent=a.score_percent!=null?a.score_percent+'%':'--';$('#agreementLabel').textContent=a.label_ar||'مؤشر تقارب وليس احتمالاً';
+ $('#uncertainty').textContent=p.ensemble_uncertainty.uncertainty_label_ar||'--';
+ const t=p.extended_trend_8_15_days;if(t.available_steps){$('#trend').textContent='متوسط الحرارة '+(t.temperature_mean_c??'--')+'°، التشتت '+(t.temperature_mean_spread_c??'--')+'°';}
+ $('#regional').textContent=p.analysis.regional_ar+' '+p.analysis.confidence_ar;$('#affected').innerHTML=p.affected_cities.map(x=>'<span class="chip">'+x.city_ar+' · '+x.impact_score+'</span>').join('');
+ $('#tabs').innerHTML=p.maps.layers.map(x=>'<button class="tab" data-id="'+x.id+'">'+x.label_ar+'</button>').join('');document.querySelectorAll('.tab').forEach((b,i)=>b.onclick=()=>showMap(p.maps.layers[i],p));const first=p.maps.layers.find(x=>x.available);if(first)showMap(first,p);
+}).catch(()=>$('#analysis').textContent='تعذر تحميل بيانات الطقس الآن.');
 </script></body></html>
