@@ -8,10 +8,17 @@ from app.ensemble.agreement import model_agreement
 # 0-144 h every 6 h, then 12-hourly to day 15.
 FORECAST_STEPS = list(range(0, 145, 6)) + list(range(156, 361, 12))
 
+
 def build_timeline(city: str, steps=None, include_gefs: bool = True) -> list[dict]:
     if city not in CITIES:
         raise KeyError(city)
-    # None means use the default forecast schedule; an explicit empty list must stay empty.\n    # This prevents a range with no matching forecast steps from accidentally triggering\n    # downloads for the entire 15-day horizon.\n    if steps is None:\n        steps = FORECAST_STEPS\n    timeline = []
+
+    # None selects the default schedule. An explicit [] intentionally means
+    # there are no matching forecast steps and must not trigger any downloads.
+    if steps is None:
+        steps = FORECAST_STEPS
+
+    timeline = []
     for step in steps:
         e_ds = open_surface(download_deterministic(step))
         e = city_forecast(e_ds, city)
