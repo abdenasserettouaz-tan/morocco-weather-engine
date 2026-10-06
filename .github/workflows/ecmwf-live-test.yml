@@ -63,6 +63,10 @@ jobs:
           ui = c.get('/mobile-ui/')
           assert ui.status_code == 200
           assert 'طقس المغرب' in ui.text
+          assert 'ثقة النماذج' in ui.text
+          assert 'اتجاه 8–15 يومًا' in ui.text
+          assert 'المناطق المتأثرة' in ui.text
+          assert 'خرائط الطقس' in ui.text
           m = c.get('/meta')
           assert m.status_code == 200
           assert 360 in m.json()['timeline_steps_hours']
