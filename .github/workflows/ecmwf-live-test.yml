@@ -106,6 +106,23 @@ jobs:
           assert set(['precipitation','pressure_wind','500hpa','850hpa']).issubset(mp['maps']['available_layers'])
           assert mp['analysis_ar']
           print('Validated mobile API contract and probability semantics')
+          from app.forecast.daily import daily_from_accumulated, extended_probabilistic_trend
+          sample = [
+              {'step_hours': 24, 'ecmwf': {'temperature_c': 10, 'wind_kmh': 20, 'total_precip_mm': 3}},
+              {'step_hours': 48, 'ecmwf': {'temperature_c': 12, 'wind_kmh': 30, 'total_precip_mm': 8}},
+          ]
+          cards = daily_from_accumulated(sample)
+          assert cards[0]['daily_precip_mm'] == 3.0
+          assert cards[1]['daily_precip_mm'] == 5.0
+          trend = extended_probabilistic_trend([
+              {'day': 8, 'temperature_c': {'mean': 15, 'spread': 2}, 'total_precip_mm': {'mean': 10}},
+              {'day': 10, 'temperature_c': {'mean': 17, 'spread': 4}, 'total_precip_mm': {'mean': 14}},
+          ])
+          assert trend['deterministic'] is False
+          assert trend['official_probability'] is False
+          assert trend['temperature_mean_c'] == 16.0
+          assert trend['temperature_mean_spread_c'] == 3.0
+          print('Validated daily accumulation semantics and days 8-15 probabilistic trend contract')
           PY
       - name: Upload forecast artifact
         if: always()
