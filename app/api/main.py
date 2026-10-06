@@ -7,7 +7,7 @@ from app.api.schemas import EngineMeta
 
 app = FastAPI(
     title="Morocco Weather Engine",
-    version="0.5.0",
+    version="0.6.0",
     description="ECMWF + NOAA GEFS weather engine for Morocco and NW Africa",
 )
 
@@ -60,4 +60,119 @@ def timeline(
         "models": ["ECMWF IFS"] + (["NOAA GEFS control"] if include_gefs else []),
         "timeline": data,
         "agreement_note_ar": "درجة الاتفاق مؤشر حسابي لتقارب النموذجين وليست احتمالاً رسميًا.",
+    }
+
+
+@app.get("/mobile/{city}")
+def mobile(
+    city: str,
+    step: int = Query(72, ge=0, le=360),
+    rain_threshold: int = Query(1),
+    include_gefs: bool = True,
+):
+    """Unified payload contract for the mobile client.
+
+    V1 intentionally reads/downloads only the requested forecast step. The
+    complete 15-day timeline remains a separate endpoint until ingestion/cache
+    precomputes it, avoiding dozens of network downloads per mobile request.
+    """
+    if city not in CITIES:
+        raise HTTPException(404, "Unknown city")
+    if rain_threshold not in {1, 5, 10, 20, 25, 50, 100}:
+        raise HTTPException(400, "Unsupported precipitation threshold")
+
+    from app.downloader.ecmwf import download_deterministic, download_daily_precip_probability
+    from app.downloader.gefs import download_gefs_member
+    from app.ensemble.agreement import model_agreement
+    from app.ensemble.probability import precipitation_probability
+
+    try:
+        e = city_forecast(open_surface(download_deterministic(step)), city)
+        e["model"] = "ECMWF IFS"
+        e["forecast_step_hours"] = step
+
+        g = None
+        agreement = None
+        if include_gefs:
+            g = city_forecast(open_surface(download_gefs_member(step, "gec00")), city)
+            g["model"] = "NOAA GEFS control"
+            g["forecast_step_hours"] = step
+            agreement = model_agreement(e, g)
+
+        official_probability = None
+        if step >= 24:
+            start_hour = step - 24
+            try:
+                prob_ds = open_surface(
+                    download_daily_precip_probability(start_hour, rain_threshold)
+                )
+                city_cfg = CITIES[city]
+                probability = precipitation_probability(
+                    prob_ds, city_cfg["lat"], city_cfg["lon"]
+                )
+                official_probability = {
+                    "probability_percent": probability,
+                    "threshold_mm": rain_threshold,
+                    "window_start_hour": start_hour,
+                    "window_end_hour": step,
+                    "source": "ECMWF ENS type=ep",
+                    "official_probability": True,
+                }
+            except Exception:
+                # Probability is optional in this contract: deterministic/model
+                # data remains usable when the requested EP window is unavailable.
+                official_probability = None
+    except Exception as exc:
+        raise HTTPException(503, f"Model data unavailable: {exc}") from exc
+
+    return {
+        "meta": {
+            **EngineMeta().model_dump(),
+            "api_version": "0.6.0",
+            "city": city,
+            "city_ar": CITIES[city]["name_ar"],
+            "forecast_step_hours": step,
+        },
+        "current": e,
+        "day_cards": [
+            {
+                "step_hours": step,
+                "temperature_c": e.get("temperature_c"),
+                "wind_kmh": e.get("wind_kmh"),
+                "accumulated_precip_mm": e.get("total_precip_mm"),
+                "precipitation_semantics": "ECMWF IFS accumulated precipitation since model initialization",
+            }
+        ],
+        "timeline": [
+            {
+                "step_hours": step,
+                "day": round(step / 24, 2),
+                "ecmwf": e,
+                **({"gefs": g} if g is not None else {}),
+            }
+        ],
+        "official_probabilities": {
+            "ecmwf_ens_precipitation": official_probability,
+            "note_ar": "هذا الاحتمال رسمي من منتج ECMWF ENS probability عندما تكون البيانات متاحة.",
+        },
+        "cross_model_agreement": {
+            **(agreement or {"score_percent": None, "label_ar": None, "components": {}}),
+            "official_probability": False,
+            "note_ar": "درجة الاتفاق مؤشر حسابي لتقارب ECMWF وGEFS وليست احتمالاً رسميًا لحدوث الحالة.",
+        },
+        "maps": {
+            "available_layers": ["precipitation", "pressure_wind", "500hpa", "850hpa"],
+            "forecast_step_hours": step,
+        },
+        "layers": [
+            {"id": "precipitation", "label_ar": "الهطول"},
+            {"id": "pressure_wind", "label_ar": "الضغط والرياح"},
+            {"id": "500hpa", "label_ar": "طبقة 500 hPa"},
+            {"id": "850hpa", "label_ar": "طبقة 850 hPa"},
+        ],
+        "analysis_ar": (
+            arabic_summary(e)
+            + " احتمال الهطول الرسمي، إن ظهر، مصدره ECMWF ENS. "
+            + "أما درجة اتفاق النماذج فهي مقياس هندسي مستقل وليست احتمالاً رسميًا."
+        ),
     }
