@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+from fastapi import HTTPException
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -39,14 +40,32 @@ def build_snapshot(out_dir: Path, cities: list[str], steps: list[int], gefs_memb
         city_dir = out_dir / "data" / city
         city_dir.mkdir(parents=True, exist_ok=True)
         for step in steps:
-            payload = mobile(
-                city=city,
-                step=step,
-                rain_threshold=1,
-                include_gefs=True,
-                gefs_members=gefs_members,
-                include_daily=True,
-            )
+            try:
+                payload = mobile(
+                    city=city,
+                    step=step,
+                    rain_threshold=1,
+                    include_gefs=True,
+                    gefs_members=gefs_members,
+                    include_daily=True,
+                )
+            except HTTPException as exc:
+                # GEFS products can lag or be temporarily unavailable at long leads.
+                # Keep the static forecast publishable with ECMWF instead of failing
+                # the whole Pages build; the payload semantics already distinguish
+                # official ECMWF probability from optional GEFS diagnostics.
+                if exc.status_code != 503:
+                    raise
+                payload = mobile(
+                    city=city,
+                    step=step,
+                    rain_threshold=1,
+                    include_gefs=False,
+                    gefs_members=0,
+                    include_daily=True,
+                )
+                payload.setdefault("meta", {})["gefs_fallback"] = True
+                payload["meta"]["gefs_fallback_reason"] = str(exc.detail)
             for layer in payload.get("maps", {}).get("layers", []):
                 if layer.get("url"):
                     layer["url"] = "maps/" + Path(layer["url"]).name
