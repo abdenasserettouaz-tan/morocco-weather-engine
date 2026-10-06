@@ -7,7 +7,7 @@ from app.api.schemas import EngineMeta
 
 app = FastAPI(
     title="Morocco Weather Engine",
-    version="0.6.0",
+    version="0.7.0",
     description="ECMWF + NOAA GEFS weather engine for Morocco and NW Africa",
 )
 
@@ -85,6 +85,8 @@ def mobile(
     from app.downloader.gefs import download_gefs_member
     from app.ensemble.agreement import model_agreement
     from app.ensemble.probability import precipitation_probability
+    from app.ensemble.uncertainty import pressure_uncertainty
+    from app.downloader.ecmwf import download_ens_mean_pressure, download_ens_spread_pressure
 
     try:
         e = city_forecast(open_surface(download_deterministic(step)), city)
@@ -99,6 +101,19 @@ def mobile(
             g["forecast_step_hours"] = step
             agreement = model_agreement(e, g)
 
+        city_cfg = CITIES[city]
+        uncertainty = None
+        try:
+            mean_ds = open_surface(download_ens_mean_pressure(step))
+            spread_ds = open_surface(download_ens_spread_pressure(step))
+            uncertainty = pressure_uncertainty(
+                mean_ds, spread_ds, city_cfg["lat"], city_cfg["lon"]
+            )
+        except Exception:
+            # ENS mean/spread is additive metadata; keep the base forecast usable
+            # if a specific ENS product is temporarily unavailable.
+            uncertainty = None
+
         official_probability = None
         if step >= 24:
             start_hour = step - 24
@@ -106,7 +121,6 @@ def mobile(
                 prob_ds = open_surface(
                     download_daily_precip_probability(start_hour, rain_threshold)
                 )
-                city_cfg = CITIES[city]
                 probability = precipitation_probability(
                     prob_ds, city_cfg["lat"], city_cfg["lon"]
                 )
@@ -128,7 +142,7 @@ def mobile(
     return {
         "meta": {
             **EngineMeta().model_dump(),
-            "api_version": "0.6.0",
+            "api_version": "0.7.0",
             "city": city,
             "city_ar": CITIES[city]["name_ar"],
             "forecast_step_hours": step,
@@ -155,6 +169,15 @@ def mobile(
             "ecmwf_ens_precipitation": official_probability,
             "note_ar": "هذا الاحتمال رسمي من منتج ECMWF ENS probability عندما تكون البيانات متاحة.",
         },
+        "ensemble_uncertainty": uncertainty or {
+            "ecmwf_ens_mean_pressure_hpa": None,
+            "ecmwf_ens_pressure_spread_hpa": None,
+            "uncertainty_label_ar": None,
+            "source_mean": "ECMWF ENS type=em",
+            "source_spread": "ECMWF ENS type=es",
+            "official_probability": False,
+            "note_ar": "بيانات ENS mean/spread غير متاحة لهذه الخطوة حالياً؛ لم يتم اختلاق قيمة بديلة.",
+        },
         "cross_model_agreement": {
             **(agreement or {"score_percent": None, "label_ar": None, "components": {}}),
             "official_probability": False,
@@ -173,6 +196,6 @@ def mobile(
         "analysis_ar": (
             arabic_summary(e)
             + " احتمال الهطول الرسمي، إن ظهر، مصدره ECMWF ENS. "
-            + "أما درجة اتفاق النماذج فهي مقياس هندسي مستقل وليست احتمالاً رسميًا."
+            + "تشتت ENS يصف عدم اليقين ولا يمثل احتمالاً رسميًا. أما درجة اتفاق النماذج فهي مقياس هندسي مستقل وليست احتمالاً رسميًا."
         ),
     }
