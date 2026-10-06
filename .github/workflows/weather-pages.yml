@@ -1,0 +1,98 @@
+name: Weather Snapshot Pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      full_build:
+        description: Build all cities and extended steps
+        required: false
+        default: "false"
+  schedule:
+    - cron: "35 1,7,13,19 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "app/snapshot.py"
+      - "app/mobile/**"
+      - ".github/workflows/weather-pages.yml"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: weather-pages
+  cancel-in-progress: false
+
+jobs:
+  snapshot-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: sudo apt-get update && sudo apt-get install -y libeccodes0
+      - run: pip install -r requirements.txt
+      - name: Build live smoke snapshot
+        run: python -m app.snapshot --out public --cities tangier --steps 72 --gefs-members 2
+      - name: Validate static contract
+        run: |
+          test -s public/index.html
+          test -s public/runtime-config.js
+          test -s public/metadata.json
+          test -s public/data/tangier/72.json
+          python - <<'PY'
+          import json
+          p=json.load(open("public/data/tangier/72.json", encoding="utf-8"))
+          assert p["meta"]["city"] == "tangier"
+          assert p["meta"]["forecast_step_hours"] == 72
+          assert "current" in p and "analysis" in p
+          assert "official_probabilities" in p and "gefs_ensemble" in p
+          assert "maps" in p and "layers" in p
+          print("snapshot contract OK")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: weather-snapshot-smoke
+          path: public
+          retention-days: 3
+
+  build-pages:
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.full_build == 'true') }}
+    needs: snapshot-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: sudo apt-get update && sudo apt-get install -y libeccodes0
+      - run: pip install -r requirements.txt
+      - name: Build complete static forecast
+        run: python -m app.snapshot --out public --steps 72 192 240 288 360 --gefs-members 3
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+  deploy:
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.full_build == 'true') }}
+    needs: build-pages
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
