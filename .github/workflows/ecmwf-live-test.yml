@@ -60,6 +60,9 @@ jobs:
           h = c.get('/health')
           assert h.status_code == 200
           assert h.json()['horizon_days'] == 15
+          ui = c.get('/mobile-ui/')
+          assert ui.status_code == 200
+          assert 'طقس المغرب' in ui.text
           m = c.get('/meta')
           assert m.status_code == 200
           assert 360 in m.json()['timeline_steps_hours']
