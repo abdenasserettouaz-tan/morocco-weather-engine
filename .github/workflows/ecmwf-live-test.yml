@@ -104,6 +104,13 @@ jobs:
               assert official['official_probability'] is True
               assert official['source'] == 'ECMWF ENS type=ep'
           assert set(['precipitation','pressure_wind','500hpa','850hpa']).issubset(mp['maps']['available_layers'])
+          layer_meta = {x['id']: x for x in mp['maps']['layers']}
+          assert all(layer_meta[x]['available'] for x in ['precipitation','pressure_wind','500hpa','850hpa'])
+          assert layer_meta['precipitation']['url'] == '/maps/precip_072h.png'
+          map_response = c.get(layer_meta['precipitation']['url'])
+          assert map_response.status_code == 200
+          assert map_response.headers['content-type'].startswith('image/png')
+          assert len(map_response.content) > 0
           assert mp['analysis_ar']
           assert len(mp['day_cards']) == 3
           assert mp['day_cards'][-1]['end_step_hours'] == 72
