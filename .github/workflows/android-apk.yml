@@ -33,7 +33,7 @@ jobs:
         env:
           WEATHER_APP_URL: ${{ vars.WEATHER_APP_URL }}
         run: |
-          if [ -z "$WEATHER_APP_URL" ]; then WEATHER_APP_URL="https://weather.example.invalid/mobile-ui/"; fi
+          if [ -z "$WEATHER_APP_URL" ]; then WEATHER_APP_URL="https://abdenasserettouaz-tan.github.io/morocco-weather-engine/"; fi
           case "$WEATHER_APP_URL" in https://*) ;; *) echo "WEATHER_APP_URL must use HTTPS"; exit 1;; esac
           echo "WEATHER_APP_URL=$WEATHER_APP_URL" >> "$GITHUB_ENV"
       - name: Build debug APK
