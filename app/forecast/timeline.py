@@ -11,8 +11,7 @@ FORECAST_STEPS = list(range(0, 145, 6)) + list(range(156, 361, 12))
 def build_timeline(city: str, steps=None, include_gefs: bool = True) -> list[dict]:
     if city not in CITIES:
         raise KeyError(city)
-    steps = steps or FORECAST_STEPS
-    timeline = []
+    # None means use the default forecast schedule; an explicit empty list must stay empty.\n    # This prevents a range with no matching forecast steps from accidentally triggering\n    # downloads for the entire 15-day horizon.\n    if steps is None:\n        steps = FORECAST_STEPS\n    timeline = []
     for step in steps:
         e_ds = open_surface(download_deterministic(step))
         e = city_forecast(e_ds, city)
