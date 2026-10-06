@@ -64,7 +64,7 @@ jobs:
           retention-days: 3
 
   build-pages:
-    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.full_build == 'true') }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.full_build == 'true') }}
     needs: snapshot-test
     runs-on: ubuntu-latest
     timeout-minutes: 180
@@ -86,7 +86,7 @@ jobs:
           path: public
 
   deploy:
-    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.full_build == 'true') }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.full_build == 'true') }}
     needs: build-pages
     runs-on: ubuntu-latest
     environment:
