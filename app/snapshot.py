@@ -15,6 +15,7 @@ from app.maps.synoptic import render_pressure_wind
 from app.config import CITIES, OUTPUT_DIR, ROOT
 
 DEFAULT_STEPS = [72, 192, 240, 288, 360]
+DAILY_SAMPLE_HOURS = (6, 12, 18, 24)
 
 
 def _json_default(value):
@@ -78,6 +79,22 @@ def build_snapshot(out_dir: Path, cities: list[str], steps: list[int], gefs_memb
                 )
                 payload.setdefault("meta", {})["gefs_fallback"] = True
                 payload["meta"]["gefs_fallback_reason"] = str(exc.detail)
+            # mobile() intentionally uses daily boundaries for a cheap API call.
+            # Static Pages can afford richer intra-day sampling so min/max are
+            # actual daily extrema rather than the same 24 h boundary value.
+            try:
+                from app.forecast.daily import daily_from_accumulated
+                from app.forecast.point import city_forecast
+                rich_points=[]
+                max_hour=max(24, min(int(step), 360))
+                for h in range(6, max_hour + 1, 6):
+                    if (h % 24) not in DAILY_SAMPLE_HOURS:
+                        continue
+                    rich_points.append({"step_hours": h, "ecmwf": city_forecast(open_surface(download_deterministic(h)), city)})
+                if rich_points:
+                    payload["day_cards"] = daily_from_accumulated(rich_points)
+            except Exception as exc:
+                payload.setdefault("meta", {})["daily_sampling_fallback"] = str(exc)
             for layer in payload.get("maps", {}).get("layers", []):
                 filename = Path(layer.get("url", "")).name
                 if filename:
