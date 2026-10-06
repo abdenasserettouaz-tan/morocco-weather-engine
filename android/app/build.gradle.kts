@@ -9,8 +9,8 @@ android {
         applicationId = "ma.weather.morocco"
         minSdk = 23
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
         val weatherAppUrl = (project.findProperty("weatherAppUrl") as String?) ?: "https://abdenasserettouaz-tan.github.io/morocco-weather-engine/"
         buildConfigField("String", "WEATHER_APP_URL", "\"${weatherAppUrl}\"")
     }
