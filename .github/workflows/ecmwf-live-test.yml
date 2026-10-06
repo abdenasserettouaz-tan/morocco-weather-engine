@@ -74,10 +74,10 @@ jobs:
           empty = c.get('/timeline/tangier?start=145&end=155&include_gefs=false')
           assert empty.status_code == 200, empty.text
           assert empty.json()['timeline'] == []
-          mobile = c.get('/mobile/tangier?step=72&rain_threshold=1&include_gefs=true&gefs_members=3')
+          mobile = c.get('/mobile/tangier?step=72&rain_threshold=1&include_gefs=true&gefs_members=3&include_daily=true')
           assert mobile.status_code == 200, mobile.text
           mp = mobile.json()
-          assert mp['meta']['api_version'] == '0.8.0'
+          assert mp['meta']['api_version'] == '0.9.0'
           assert mp['current']['model'] == 'ECMWF IFS'
           assert mp['timeline'][0]['gefs']['model'] == 'NOAA GEFS control'
           assert mp['cross_model_agreement']['official_probability'] is False
@@ -105,6 +105,11 @@ jobs:
               assert official['source'] == 'ECMWF ENS type=ep'
           assert set(['precipitation','pressure_wind','500hpa','850hpa']).issubset(mp['maps']['available_layers'])
           assert mp['analysis_ar']
+          assert len(mp['day_cards']) == 3
+          assert mp['day_cards'][-1]['end_step_hours'] == 72
+          assert 'daily_precip_mm' in mp['day_cards'][-1]
+          assert mp['extended_trend_8_15_days']['deterministic'] is False
+          assert mp['extended_trend_8_15_days']['official_probability'] is False
           print('Validated mobile API contract and probability semantics')
           from app.forecast.daily import daily_from_accumulated, extended_probabilistic_trend
           sample = [
