@@ -64,8 +64,8 @@ jobs:
           assert ui.status_code == 200
           assert 'طقس المغرب' in ui.text
           assert 'ثقة النماذج' in ui.text
-          assert 'اتجاه 8–15 يومًا' in ui.text
-          assert 'المناطق المتأثرة' in ui.text
+          assert 'id="forecast15"' in ui.text
+          assert 'id="modelAnalysis"' in ui.text
           assert 'خرائط الطقس' in ui.text
           assert 'توقع 15 يومًا' in ui.text
           assert 'الإعدادات' in ui.text
