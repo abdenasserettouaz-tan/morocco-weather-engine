@@ -74,7 +74,21 @@ jobs:
           empty = c.get('/timeline/tangier?start=145&end=155&include_gefs=false')
           assert empty.status_code == 200, empty.text
           assert empty.json()['timeline'] == []
-          print('Validated API timeline +72h and empty-range regression')
+          mobile = c.get('/mobile/tangier?step=72&rain_threshold=1&include_gefs=true')
+          assert mobile.status_code == 200, mobile.text
+          mp = mobile.json()
+          assert mp['meta']['api_version'] == '0.6.0'
+          assert mp['current']['model'] == 'ECMWF IFS'
+          assert mp['timeline'][0]['gefs']['model'] == 'NOAA GEFS control'
+          assert mp['cross_model_agreement']['official_probability'] is False
+          assert 'official_probabilities' in mp
+          official = mp['official_probabilities']['ecmwf_ens_precipitation']
+          if official is not None:
+              assert official['official_probability'] is True
+              assert official['source'] == 'ECMWF ENS type=ep'
+          assert set(['precipitation','pressure_wind','500hpa','850hpa']).issubset(mp['maps']['available_layers'])
+          assert mp['analysis_ar']
+          print('Validated mobile API contract and probability semantics')
           PY
       - name: Upload forecast artifact
         if: always()
