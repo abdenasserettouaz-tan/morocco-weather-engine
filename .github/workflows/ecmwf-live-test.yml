@@ -74,13 +74,22 @@ jobs:
           empty = c.get('/timeline/tangier?start=145&end=155&include_gefs=false')
           assert empty.status_code == 200, empty.text
           assert empty.json()['timeline'] == []
-          mobile = c.get('/mobile/tangier?step=72&rain_threshold=1&include_gefs=true')
+          mobile = c.get('/mobile/tangier?step=72&rain_threshold=1&include_gefs=true&gefs_members=3')
           assert mobile.status_code == 200, mobile.text
           mp = mobile.json()
-          assert mp['meta']['api_version'] == '0.7.0'
+          assert mp['meta']['api_version'] == '0.8.0'
           assert mp['current']['model'] == 'ECMWF IFS'
           assert mp['timeline'][0]['gefs']['model'] == 'NOAA GEFS control'
           assert mp['cross_model_agreement']['official_probability'] is False
+          assert 'gefs_ensemble' in mp
+          ge = mp['gefs_ensemble']
+          assert ge['official_probability'] is False
+          assert ge['source'] == 'NOAA/NCEP GEFS perturbed members'
+          if ge['available_member_count']:
+              assert ge['available_member_count'] >= 2
+              assert ge['requested_member_count'] == 3
+              assert ge['temperature_c']['mean'] is not None
+              assert ge['temperature_c']['spread'] >= 0
           assert 'ensemble_uncertainty' in mp
           uncertainty = mp['ensemble_uncertainty']
           assert uncertainty['official_probability'] is False
