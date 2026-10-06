@@ -7,7 +7,7 @@ from app.api.schemas import EngineMeta
 
 app = FastAPI(
     title="Morocco Weather Engine",
-    version="0.7.0",
+    version="0.8.0",
     description="ECMWF + NOAA GEFS weather engine for Morocco and NW Africa",
 )
 
@@ -69,6 +69,7 @@ def mobile(
     step: int = Query(72, ge=0, le=360),
     rain_threshold: int = Query(1),
     include_gefs: bool = True,
+    gefs_members: int = Query(5, ge=2, le=30),
 ):
     """Unified payload contract for the mobile client.
 
@@ -87,6 +88,7 @@ def mobile(
     from app.ensemble.probability import precipitation_probability
     from app.ensemble.uncertainty import pressure_uncertainty
     from app.downloader.ecmwf import download_ens_mean_pressure, download_ens_spread_pressure
+    from app.ensemble.gefs_summary import build_gefs_summary, GEFS_PERTURBED_MEMBERS
 
     try:
         e = city_forecast(open_surface(download_deterministic(step)), city)
@@ -100,6 +102,15 @@ def mobile(
             g["model"] = "NOAA GEFS control"
             g["forecast_step_hours"] = step
             agreement = model_agreement(e, g)
+
+        gefs_ensemble = None
+        if include_gefs:
+            try:
+                gefs_ensemble = build_gefs_summary(
+                    city, step, members=GEFS_PERTURBED_MEMBERS[:gefs_members]
+                )
+            except Exception:
+                gefs_ensemble = None
 
         city_cfg = CITIES[city]
         uncertainty = None
@@ -142,7 +153,7 @@ def mobile(
     return {
         "meta": {
             **EngineMeta().model_dump(),
-            "api_version": "0.7.0",
+            "api_version": "0.8.0",
             "city": city,
             "city_ar": CITIES[city]["name_ar"],
             "forecast_step_hours": step,
@@ -168,6 +179,14 @@ def mobile(
         "official_probabilities": {
             "ecmwf_ens_precipitation": official_probability,
             "note_ar": "هذا الاحتمال رسمي من منتج ECMWF ENS probability عندما تكون البيانات متاحة.",
+        },
+        "gefs_ensemble": gefs_ensemble or {
+            "source": "NOAA/NCEP GEFS perturbed members",
+            "requested_member_count": gefs_members if include_gefs else 0,
+            "available_member_count": 0,
+            "official_probability": False,
+            "semantics": "application-computed ensemble mean/spread/range from NOAA GEFS members",
+            "note_ar": "ملخص أعضاء GEFS غير متاح لهذه الخطوة حالياً؛ لم يتم اختلاق قيم بديلة.",
         },
         "ensemble_uncertainty": uncertainty or {
             "ecmwf_ens_mean_pressure_hpa": None,
@@ -196,6 +215,6 @@ def mobile(
         "analysis_ar": (
             arabic_summary(e)
             + " احتمال الهطول الرسمي، إن ظهر، مصدره ECMWF ENS. "
-            + "تشتت ENS يصف عدم اليقين ولا يمثل احتمالاً رسميًا. أما درجة اتفاق النماذج فهي مقياس هندسي مستقل وليست احتمالاً رسميًا."
+            + "تشتت ENS يصف عدم اليقين ولا يمثل احتمالاً رسميًا. ملخص GEFS يحسب المتوسط والتشتت من أعضاء NOAA الفعليين ولا يمثل احتمال حدث رسميًا.  أما درجة اتفاق النماذج فهي مقياس هندسي مستقل وليست احتمالاً رسميًا."
         ),
     }
