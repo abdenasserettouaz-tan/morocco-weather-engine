@@ -77,10 +77,18 @@ jobs:
           mobile = c.get('/mobile/tangier?step=72&rain_threshold=1&include_gefs=true')
           assert mobile.status_code == 200, mobile.text
           mp = mobile.json()
-          assert mp['meta']['api_version'] == '0.6.0'
+          assert mp['meta']['api_version'] == '0.7.0'
           assert mp['current']['model'] == 'ECMWF IFS'
           assert mp['timeline'][0]['gefs']['model'] == 'NOAA GEFS control'
           assert mp['cross_model_agreement']['official_probability'] is False
+          assert 'ensemble_uncertainty' in mp
+          uncertainty = mp['ensemble_uncertainty']
+          assert uncertainty['official_probability'] is False
+          assert uncertainty['source_mean'] == 'ECMWF ENS type=em'
+          assert uncertainty['source_spread'] == 'ECMWF ENS type=es'
+          if uncertainty['ecmwf_ens_pressure_spread_hpa'] is not None:
+              assert uncertainty['ecmwf_ens_pressure_spread_hpa'] >= 0
+              assert uncertainty['uncertainty_label_ar'] in ['منخفض', 'متوسط', 'مرتفع']
           assert 'official_probabilities' in mp
           official = mp['official_probabilities']['ecmwf_ens_precipitation']
           if official is not None:
