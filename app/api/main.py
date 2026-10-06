@@ -15,6 +15,7 @@ app = FastAPI(
 
 # Generated weather maps are served read-only to mobile/web clients.
 app.mount("/maps", StaticFiles(directory=str(DATA_DIR.parent / "output")), name="maps")
+app.mount("/mobile-ui", StaticFiles(directory=str(DATA_DIR.parent / "app" / "mobile"), html=True), name="mobile-ui")
 
 @app.get("/health")
 def health():
