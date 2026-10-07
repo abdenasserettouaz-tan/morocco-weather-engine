@@ -7,6 +7,8 @@ import android.os.Bundle
 import android.view.View
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceError
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.ProgressBar
@@ -46,6 +48,8 @@ class MainActivity : Activity() {
         webView.settings.allowContentAccess = false
         webView.settings.setSupportZoom(false)
         webView.settings.builtInZoomControls = false
+        webView.settings.mediaPlaybackRequiresUserGesture = true
+        webView.settings.userAgentString = webView.settings.userAgentString + " MoroccoWeatherAndroid/1.0"
 
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
@@ -60,16 +64,37 @@ class MainActivity : Activity() {
             override fun onReceivedError(
                 view: WebView?,
                 request: WebResourceRequest?,
-                error: android.webkit.WebResourceError?
+                error: WebResourceError?
             ) {
-                if (request?.isForMainFrame == true) {
-                    progress.visibility = View.GONE
-                    errorView.visibility = View.VISIBLE
+                if (request?.isForMainFrame == true) showLoadError()
+            }
+
+            override fun onReceivedHttpError(
+                view: WebView?,
+                request: WebResourceRequest?,
+                errorResponse: WebResourceResponse?
+            ) {
+                if (request?.isForMainFrame == true && (errorResponse?.statusCode ?: 0) >= 400) {
+                    showLoadError()
                 }
             }
         }
         webView.webChromeClient = WebChromeClient()
-        webView.loadUrl(BuildConfig.WEATHER_APP_URL)
+        if (savedInstanceState == null) {
+            webView.loadUrl(BuildConfig.WEATHER_APP_URL)
+        } else {
+            webView.restoreState(savedInstanceState)
+        }
+    }
+
+    private fun showLoadError() {
+        progress.visibility = View.GONE
+        errorView.visibility = View.VISIBLE
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        webView.saveState(outState)
+        super.onSaveInstanceState(outState)
     }
 
     override fun onResume() {
