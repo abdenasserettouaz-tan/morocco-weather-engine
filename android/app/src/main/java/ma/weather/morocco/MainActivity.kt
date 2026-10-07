@@ -11,6 +11,8 @@ import android.webkit.WebResourceError
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.net.Uri
+import android.content.Intent
 import android.widget.ProgressBar
 import android.widget.TextView
 
@@ -51,7 +53,19 @@ class MainActivity : Activity() {
         webView.settings.mediaPlaybackRequiresUserGesture = true
         webView.settings.userAgentString = webView.settings.userAgentString + " MoroccoWeatherAndroid/1.0"
 
+        val appOrigin = Uri.parse(BuildConfig.WEATHER_APP_URL)
         webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                val uri = request?.url ?: return false
+                val sameOrigin = uri.scheme == appOrigin.scheme && uri.host == appOrigin.host &&
+                    effectivePort(uri) == effectivePort(appOrigin)
+                if (sameOrigin) return false
+                if (uri.scheme == "https" || uri.scheme == "http") {
+                    startActivity(Intent(Intent.ACTION_VIEW, uri))
+                    return true
+                }
+                return true
+            }
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                 progress.visibility = View.VISIBLE
                 errorView.visibility = View.GONE
@@ -86,6 +100,9 @@ class MainActivity : Activity() {
             webView.restoreState(savedInstanceState)
         }
     }
+
+    private fun effectivePort(uri: Uri): Int =
+        if (uri.port != -1) uri.port else if (uri.scheme == "https") 443 else 80
 
     private fun showLoadError() {
         progress.visibility = View.GONE
